@@ -47,6 +47,9 @@ from src.investigation import create_investigation_report
 
 CUTOFF_DATE = "2018-07-01"
 
+# Last reliable actual date used for business investigation
+ACTUAL_CUTOFF_DATE = pd.Timestamp("2018-09-01")
+
 
 st.set_page_config(
     page_title="AI Root Cause Investigator",
@@ -54,6 +57,49 @@ st.set_page_config(
     layout="wide"
 )
 
+def forecast_future_date(
+    target_date,
+    daily_orders,
+    future_model,
+    future_features
+):
+
+    target_date = pd.Timestamp(target_date)
+
+    history = daily_orders[
+        daily_orders.index < ACTUAL_CUTOFF_DATE
+    ].copy()
+
+    current_date = (
+        history.index.max()
+        + pd.Timedelta(days=1)
+    )
+
+    while current_date <= target_date:
+
+        lag_1 = history.iloc[-1]
+        lag_7 = history.iloc[-7]
+        rolling_7 = history.tail(7).mean()
+        day_of_week = current_date.dayofweek
+
+        X_future = pd.DataFrame([{
+            "lag_1": lag_1,
+            "lag_7": lag_7,
+            "rolling_7": rolling_7,
+            "day_of_week": day_of_week
+        }])
+
+        prediction = future_model.predict(
+            X_future[future_features]
+        )[0]
+
+        prediction = max(0, prediction)
+
+        history.loc[current_date] = prediction
+
+        current_date += pd.Timedelta(days=1)
+
+    return history.loc[target_date]
 
 @st.cache_data
 def load_data():
@@ -73,6 +119,7 @@ def load_data():
         payments,
         reviews
     )
+
 
 
 @st.cache_resource
@@ -106,8 +153,20 @@ def run_model(orders):
         features
     )
 
+    # Model for future forecasting
+    future_train = data[
+        data.index < ACTUAL_CUTOFF_DATE
+    ]
+
+    future_model, future_features = train_model(
+        future_train
+    )
+
     return (
         model,
+        future_model,
+        future_features,
+        daily_orders,
         results,
         importance,
         mae,
@@ -283,6 +342,9 @@ with st.spinner("Training forecasting model..."):
 
     (
         model,
+        future_model,
+        future_features,
+        daily_orders,
         results,
         importance,
         mae,
@@ -303,13 +365,7 @@ anomaly_list = anomaly_list.sort_values(
 )
 
 
-# Only dates available in the model holdout period
-available_dates = (
-    results["date"]
-    .sort_values()
-    .dt.date
-    .tolist()
-)
+
 
 
 st.title("🔎 AI Root Cause Investigator")
@@ -352,47 +408,80 @@ st.sidebar.dataframe(
     use_container_width=True,
     hide_index=True
 )
-
 st.sidebar.markdown(
-    "### 📅 Investigation Date"
+    "### 📅 Analysis Date"
 )
 
-min_date = min(available_dates)
-max_date = max(available_dates)
+min_date = results["date"].min().date()
+max_date = daily_orders.index.max().date()
 
 selected_date = st.sidebar.date_input(
-    "Select a test date",
-    value=pd.to_datetime("2018-07-18").date(),
+    "Select date",
+    value=pd.to_datetime("2018-07-19").date(),
     min_value=min_date,
     max_value=max_date
 )
 
-if selected_date not in available_dates:
+selected_timestamp = pd.Timestamp(selected_date)
 
-    st.sidebar.warning(
-        "This date is outside the forecasting test period."
+
+# --------------------------------------------------
+# FUTURE / FORECAST ONLY
+# --------------------------------------------------
+
+if selected_timestamp >= ACTUAL_CUTOFF_DATE:
+
+    forecast = forecast_future_date(
+        selected_timestamp,
+        daily_orders,
+        future_model,
+        future_features
     )
 
-else:
+    st.divider()
 
-    st.sidebar.caption(
-        "Select any date from the forecasting test period."
+    st.subheader(
+        f"🔮 Forecast: {selected_date}"
     )
 
-investigation = None
+    col1, col2 = st.columns(2)
 
-if selected_date not in available_dates:
+    with col1:
+        st.metric(
+            "Forecasted Orders",
+            f"{forecast:.0f}"
+        )
 
-    st.warning(
-        f"{selected_date} is outside the forecasting test period."
-    )
+    with col2:
+        st.metric(
+            "Status",
+            "Forecast Only"
+        )
 
     st.info(
-        f"Please select a date between {min_date} and {max_date}."
+        "Actual demand is not considered reliably available "
+        "for this date. Therefore anomaly detection and "
+        "root-cause investigation are skipped."
+    )
+
+    st.subheader("📈 Forecast Information")
+
+    st.write(
+        f"The model forecasts approximately "
+        f"**{forecast:.0f} orders** for {selected_date}."
+    )
+
+    st.warning(
+        "No anomaly or root-cause conclusion is generated "
+        "because actual demand is unavailable for reliable comparison."
     )
 
     st.stop()
 
+
+# --------------------------------------------------
+# HISTORICAL INVESTIGATION
+# --------------------------------------------------
 
 investigation = prepare_investigation(
     selected_date,

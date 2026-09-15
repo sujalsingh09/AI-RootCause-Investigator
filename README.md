@@ -1,12 +1,16 @@
 # 🛒 AI Root Cause Investigator for E-commerce Operations
 
-> An end-to-end Machine Learning and analytics system that detects unusual changes in e-commerce demand and automatically investigates the possible business factors behind those anomalies.
+> An end-to-end Machine Learning and analytics system that forecasts e-commerce demand, detects unusual demand patterns, and investigates the business factors that may be associated with those changes.
 
-Built on the **Brazilian E-commerce Public Dataset by Olist**, this project simulates how an e-commerce operations team could detect an unusual demand pattern, investigate the affected business dimensions, rank possible root causes using evidence, and present the full investigation through an interactive dashboard.
+Built using the **Brazilian E-commerce Public Dataset by Olist**, this project demonstrates how an e-commerce operations team could combine demand forecasting, anomaly detection, and multi-dimensional business analysis to understand unusual changes in order volume.
 
-Instead of just answering *"an anomaly occurred,"* the system answers:
+Instead of stopping at:
 
-> **"Why did this anomaly happen?"**
+> **"Something unusual happened."**
+
+the system aims to answer:
+
+> **"What business signals may explain this unusual change?"**
 
 ---
 
@@ -17,22 +21,24 @@ Instead of just answering *"an anomaly occurred,"* the system answers:
 - [Key Features](#-key-features)
 - [Dataset](#-dataset)
 - [Machine Learning Pipeline](#-machine-learning-pipeline)
+- [Feature Engineering](#-feature-engineering)
+- [Demand Forecasting](#-demand-forecasting)
+- [Time-Based Train/Test Split](#-time-based-traintest-split)
 - [Model Evaluation](#-model-evaluation)
 - [Anomaly Detection](#-anomaly-detection)
+- [Historical vs Future Analysis](#-historical-vs-future-analysis)
 - [Root-Cause Investigation](#-root-cause-investigation)
-- [Evidence Scoring](#-evidence-scoring)
-- [Example Investigation Walkthrough](#-example-investigation-walkthrough)
+- [Evidence-Based Investigation](#-evidence-based-investigation)
+- [Example Investigation](#-example-investigation)
 - [Streamlit Dashboard](#-streamlit-dashboard)
-- [MLflow Experiment Tracking](#-mlflow-experiment-tracking)
 - [Project Structure](#-project-structure)
 - [Technology Stack](#-technology-stack)
 - [How to Run the Project](#-how-to-run-the-project)
-- [Generated Artifacts](#-generated-artifacts)
 - [Model Feature Importance](#-model-feature-importance)
 - [Limitations](#-limitations)
 - [Future Improvements](#-future-improvements)
 - [Production Architecture Idea](#-production-architecture-idea)
-- [Why This Project?](#-why-this-project)
+- [Why This Project](#-why-this-project)
 - [Author](#-author)
 - [Disclaimer](#-disclaimer)
 
@@ -40,124 +46,221 @@ Instead of just answering *"an anomaly occurred,"* the system answers:
 
 ## 🎯 Problem Statement
 
-In an e-commerce business, a sudden increase or decrease in orders can signal an important underlying event, such as:
+In an e-commerce business, changes in daily order volume can contain important operational information.
 
-- A product category suddenly becoming popular
-- Previously inactive products selling again
-- Existing products experiencing a surge in demand
-- A small number of sellers driving most of the change
-- Customer reviews indicating dissatisfaction
-- Shifts in payment behavior
-- Delivery problems affecting customer activity
+A sudden increase or decrease in demand may be associated with:
 
-The goal of this project is to **automatically detect unusual demand patterns** and **investigate the business factors** most likely associated with them.
+- Changes in product-category demand
+- Changes in product activity
+- Seller-level concentration
+- Geographic demand patterns
+- Payment behavior
+- Customer review signals
+- Delivery performance
+- Other changes in the marketplace
+
+A forecasting model can estimate how many orders would normally be expected. The next step is to compare the expected demand with the actual demand and investigate the business dimensions associated with the difference.
+
+The goal of this project is therefore to build a system that can:
+
+1. Forecast daily order demand
+2. Compare expected demand with actual demand
+3. Detect unusually large deviations
+4. Investigate possible contributing business factors
+5. Provide an explainable result through an interactive dashboard
 
 ---
 
 ## 🔍 Project Overview
 
-The system follows an end-to-end investigation pipeline:
+The current system follows this workflow:
 
-```
-Historical E-commerce Data
-          │
-          ▼
-   Demand Forecasting
-          │
-          ▼
-    Anomaly Detection
-          │
-          ▼
- Identify Suspicious Area
-          │
-          ▼
-Product │ Seller │ Geography
-Payment │ Review │ Delivery
-          │
-          ▼
-    Evidence Scoring
-          │
-          ▼
-   Root-Cause Ranking
-          │
-          ▼
- Explainable Investigation
-          │
-          ▼
-   Streamlit Dashboard
+```text
+                 User Selects Date
+                        │
+                        ▼
+                Demand Forecasting
+                        │
+                        ▼
+                 Expected Demand
+                        │
+                        ▼
+              Is Actual Data Reliable?
+                   /            \
+                 NO              YES
+                 │                │
+                 ▼                ▼
+          Forecast Only     Compare Actual
+                            vs Forecast
+                                │
+                                ▼
+                         Anomaly Detection
+                           /          \
+                         NO            YES
+                         │              │
+                         ▼              ▼
+                       Normal       Investigation
+                                        │
+                    ┌───────────────────┼───────────────────┐
+                    │                   │                   │
+                    ▼                   ▼                   ▼
+                 Product             Seller             Geography
+                    │                   │                   │
+                    ├──────────────┬────┴──────────────┐    │
+                    ▼              ▼                   ▼    ▼
+                Payment         Reviews            Delivery
+                    │              │                   │
+                    └──────────────┴───────────────────┘
+                                   │
+                                   ▼
+                         Likely Contributing Factors
+                                   │
+                                   ▼
+                           Streamlit Dashboard
 ```
 
 ---
 
 ## ✨ Key Features
 
-- 📈 Daily e-commerce demand forecasting (Random Forest)
+### Forecasting
+- 📈 Daily e-commerce demand forecasting
+- 🌲 Random Forest regression model
+- 🕐 Time-based train/test split
+- 🔢 Lag-based demand features
+- 📊 Rolling demand features
+- 📅 Day-of-week feature
+- 🔮 Recursive forecasting for future dates
+
+### Anomaly Detection
 - 🚨 Forecast-error based anomaly detection
-- 🛡️ Data coverage issue detection (guards against false anomalies)
+- 📊 Actual vs predicted demand comparison
+- 📈 Absolute forecast-error analysis
+- 🛡️ Protection against incomplete dataset coverage near the end of the historical data
+
+### Business Investigation
 - 🏷️ Product category analysis
-- 📦 Product behavior analysis (new / reactivated / increased)
+- 📦 Product behavior analysis
 - 🧑‍💼 Seller contribution analysis
 - 🗺️ Geographic analysis
-- 💳 Payment behavior analysis
+- 💳 Payment analysis
 - ⭐ Customer review analysis
-- 📝 Review text analysis using TF-IDF
+- 📝 Review text analysis
 - 🚚 Delivery performance analysis
-- 🧮 Evidence-based root-cause ranking
-- 📊 MLflow experiment tracking
+
+### Dashboard
 - 🖥️ Interactive Streamlit dashboard
-- 📄 Explainable investigation report
+- 📅 Date-based investigation
+- 📈 Forecast visualization
+- 🚨 Anomaly identification
+- 🔍 Multi-dimensional investigation
+- 📊 Explainable investigation results
 
 ---
 
 ## 📊 Dataset
 
-This project uses the **[Brazilian E-commerce Public Dataset by Olist](https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce)**.
+This project uses the **[Brazilian E-Commerce Public Dataset by Olist](https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce)**.
 
-The dataset contains approximately **100,000 orders** from the Brazilian e-commerce marketplace, covering orders, products, customers, sellers, payments, reviews, and delivery.
+The dataset contains approximately **100,000 anonymized orders** from the Brazilian e-commerce marketplace, including information related to:
 
-> **Note:** The dataset is historical and anonymized. This project is therefore implemented as a **prototype** of an operational root-cause investigation system rather than a live production monitoring system.
+- Orders
+- Customers
+- Sellers
+- Products
+- Payments
+- Reviews
+- Order items
+- Product categories
+- Geographic information
 
-### Data Used
+> The dataset is historical and anonymized. Therefore, this project is implemented as a **prototype** of an e-commerce operational analytics and investigation system rather than a live production monitoring platform.
 
-| Dataset | Description |
+### 📂 Data Used
+
+| Dataset | Purpose |
 |---|---|
-| `orders` | Order-level records and timestamps |
-| `order_items` | Line-item level product and seller data |
-| `products` | Product category and attribute data |
-| `customers` | Customer and location data |
-| `payments` | Payment method and value data |
-| `reviews` | Review scores and text |
-| `sellers` | Seller and location data |
+| `olist_orders_dataset.csv` | Order timestamps and order status |
+| `olist_order_items_dataset.csv` | Product and seller activity |
+| `olist_products_dataset.csv` | Product and category information |
+| `olist_customers_dataset.csv` | Customer and location information |
+| `olist_sellers_dataset.csv` | Seller information |
+| `olist_order_payments_dataset.csv` | Payment methods and payment values |
+| `olist_order_reviews_dataset.csv` | Customer review scores and text |
+| `olist_geolocation_dataset.csv` | Geographic information |
+| `product_category_name_translation.csv` | Product category translation |
 
-These datasets are joined and combined during the investigation process to analyze different dimensions of e-commerce activity.
+> Raw dataset files are kept locally and are **not** intended to be committed to GitHub.
 
 ---
 
 ## 🧠 Machine Learning Pipeline
 
-### 1. Daily Demand Creation
+The forecasting pipeline converts order-level data into a daily demand time series:
 
-Order timestamps are converted into daily order counts. The system builds a continuous daily time series, filling missing calendar dates with zero orders so the forecasting model receives a consistent time-based sequence.
+```text
+Raw Orders
+    │
+    ▼
+Convert Purchase Timestamp
+    │
+    ▼
+Daily Order Count
+    │
+    ▼
+Continuous Daily Time Series
+    │
+    ▼
+Feature Engineering
+    │
+    ├── Lag 1
+    ├── Lag 7
+    ├── Rolling 7
+    └── Day of Week
+    │
+    ▼
+Time-Based Train/Test Split
+    │
+    ▼
+Random Forest Regressor
+    │
+    ▼
+Demand Forecast
+    │
+    ▼
+Forecast Evaluation
+    │
+    ▼
+Anomaly Detection
+```
 
-| Date | Orders |
-|---|---|
-| 2018-07-15 | 185 |
-| 2018-07-16 | 192 |
-| 2018-07-17 | 211 |
-| 2018-07-18 | 307 |
+### ⚙️ Feature Engineering
 
-### 2. Feature Engineering
+The forecasting model currently uses four main features:
 
 | Feature | Description |
 |---|---|
-| **Lag 1** | Number of orders from the previous day |
-| **Lag 7** | Number of orders from the same weekday, one week earlier |
-| **Rolling 7-Day Average** | Average demand over the previous seven days (current day excluded to avoid leakage) |
-| **Day of Week** | Captures weekday vs. weekend demand variation |
+| `lag_1` | Number of orders on the previous day |
+| `lag_7` | Number of orders seven days earlier |
+| `rolling_7` | Average order volume over the previous seven days |
+| `day_of_week` | Day of the week represented as an integer from 0–6 |
 
-### 3. Demand Forecasting
+**Example** — for a particular date:
 
-A **Random Forest Regressor** is used for daily demand forecasting:
+```text
+Previous Day Orders      → lag_1
+Orders 7 Days Earlier    → lag_7
+Previous 7-Day Average   → rolling_7
+Day of Week              → day_of_week
+```
+
+> The rolling feature uses previous observations and excludes the current day's order count to avoid data leakage.
+
+### 📈 Demand Forecasting
+
+A **Random Forest Regressor** is used to forecast daily order demand.
+
+Current configuration:
 
 ```python
 RandomForestRegressor(
@@ -167,242 +270,406 @@ RandomForestRegressor(
 )
 ```
 
-The model learns relationships between historical demand features and the number of orders expected for a given day.
+The model learns the relationship between historical demand patterns and the number of orders expected for a given day.
 
-### 4. Train / Test Split
+### 🕐 Time-Based Train/Test Split
 
-A **time-based split** is used, with a forecasting cutoff of **`2018-07-01`**. Data before the cutoff is used for training; the later period serves as the holdout test set.
+The project uses a **chronological split** rather than a random split.
 
-A time-based split is used instead of a random split because mixing historical and future observations at random would not reflect a realistic forecasting scenario.
+Current forecasting cutoff: **`2018-07-01`**
+
+- Data before the cutoff → used for training
+- Data from the cutoff onward → used as the holdout test period
+
+```text
+Historical Data
+      │
+      ├─────────────── Training ───────────────┐
+      │                                        │
+      │                                  2018-07-01
+      │                                        │
+      └──────────────── Test ──────────────────┘
+```
+
+A time-based split is important for forecasting because future information should not be randomly mixed into the training data.
 
 ---
 
-## 📈 Model Evaluation
+## 📊 Model Evaluation
 
-| Metric | Value | Interpretation |
-|---|---|---|
-| **MAE** | 24.03 | On average, predictions differ from actual demand by ~24 orders |
-| **RMSE** | 52.34 | Penalizes larger prediction errors more heavily |
-| **R²** | 0.817 | Share of variance explained relative to a constant baseline *(not a prediction-accuracy percentage)* |
+The current Random Forest forecasting model achieved the following results on the holdout test period:
+
+| Metric | Value |
+|---|---|
+| MAE | 24.03 |
+| RMSE | 52.34 |
+| R² | 0.818 |
+
+**Metric meaning:**
+
+- **MAE (Mean Absolute Error)** — the model's predictions differ from actual demand by approximately 24 orders on average.
+- **RMSE (Root Mean Squared Error)** — gives more weight to larger prediction errors.
+- **R² (R-squared)** — approximately 0.818, indicating the model explains a substantial portion of the variation in the holdout data relative to a constant baseline. This should **not** be interpreted as "81.8% prediction accuracy."
 
 ---
 
 ## 🚨 Anomaly Detection
 
-After generating forecasts, the system compares predicted demand against actual demand:
+The system compares actual order demand with the forecasted demand:
 
+```text
+Actual Demand
+      │
+      ▼
+Expected Demand
+      │
+      ▼
+Actual - Expected
+      │
+      ▼
+Forecast Error
+      │
+      ▼
+Absolute Error
+      │
+      ▼
+Anomaly Threshold
 ```
-Actual Orders → Expected Orders → Forecast Error → Anomaly Score
-```
+
+The anomaly score is based on the magnitude of the forecast error:
 
 ```python
-absolute_error = |actual - predicted|
+absolute_error = abs(actual - predicted)
 ```
 
-Large deviations indicate that actual demand diverged meaningfully from what the model expected. A high forecast-error threshold is used to flag unusual observations.
+Large deviations between actual and expected demand are flagged for investigation.
 
-### Data Coverage Protection
+### 🛡️ Dataset Coverage Protection
 
-Historical datasets can have incomplete periods near their ending date. If order counts drop sharply simply because the dataset stops receiving records, this should **not** be misread as a real business collapse. The anomaly detection process therefore includes a coverage check based on recent demand patterns, preventing incomplete dataset coverage from being flagged as a genuine anomaly.
+The Olist dataset contains a sparse/incomplete tail near its final date. The dataset extends into October 2018, but the later portion does not provide a reliable representation of complete daily business activity.
+
+Therefore, the system uses a reliable actual-data cutoff: **`2018-09-01`**
+
+Dates after this point are **not** automatically treated as real business anomalies — this prevents incomplete historical coverage from being interpreted as an actual collapse in e-commerce demand.
+
+---
+
+## 🔮 Historical vs Future Analysis
+
+The system handles historical and future dates differently.
+
+### Historical Date
+
+If the selected date is within the reliable historical period:
+
+```text
+Selected Date
+      │
+      ▼
+Actual Available
+      │
+      ▼
+Forecast
+      │
+      ▼
+Actual vs Forecast
+      │
+      ▼
+Anomaly?
+```
+
+- If the difference is normal → **Normal Demand**
+- If the difference is unusually large:
+
+```text
+Anomaly Detected
+        │
+        ▼
+Root-Cause Investigation
+```
+
+### Future / Unreliable Date
+
+For dates after the reliable actual-data cutoff:
+
+```text
+Selected Future Date
+        │
+        ▼
+Recursive Forecast
+        │
+        ▼
+Expected Demand
+        │
+        ▼
+Forecast Only
+```
+
+Since reliable actual demand is unavailable, the system does not attempt to classify the future date as an anomaly or perform root-cause analysis.
+
+> This distinction matters: **a forecast is not the same thing as an actual business observation.**
 
 ---
 
 ## 🔬 Root-Cause Investigation
 
-Once an anomaly is detected, the system investigates it across multiple business dimensions — not just to confirm *that* demand changed, but to gather evidence for *why*:
+When an unusual historical demand pattern is detected, the system investigates multiple business dimensions. The investigation is designed to identify **likely contributing factors**, rather than claiming statistical causation.
 
+```text
+Anomaly
+   │
+   ├── Product Categories
+   │
+   ├── Product Behavior
+   │
+   ├── Sellers
+   │
+   ├── Geography
+   │
+   ├── Payments
+   │
+   ├── Customer Reviews
+   │
+   └── Delivery Performance
 ```
-Product Category → Product Behavior → Seller Contribution
-→ Geography → Payment Behavior → Customer Reviews → Delivery Performance
+
+### 🏷️ Product Category Analysis
+
+The system compares category activity on the investigated date against a reference period, helping identify categories whose share of orders changed significantly.
+
+```text
+Category
+    │
+    ├── Historical Share
+    │
+    └── Investigation-Day Share
+             │
+             ▼
+       Share Difference
 ```
 
-### Product Category Analysis
-Compares each category's share of sales on the anomaly date against a prior reference period, surfacing categories whose contribution shifted unusually (measured in percentage points).
+Categories with larger changes become stronger investigation signals.
 
-### Product Behavior Analysis
-Classifies products active around the anomaly into:
+### 📦 Product Behavior Analysis
 
-| Behavior | Definition |
+Products are analyzed based on their recent and historical activity:
+
+| Behavior | Meaning |
 |---|---|
-| **New Product** | Appears in the anomaly period but wasn't seen in prior historical sales |
-| **Reactivated Product** | Had historical sales, went inactive, then reappeared during the anomaly |
-| **Active + Increased** | Already active, but saw a spike in activity during the anomaly |
+| **New Product** | Activity appears in the investigation period but was not observed in the earlier reference period |
+| **Reactivated Product** | Had historical activity, became inactive, and appeared again |
+| **Active + Increased** | Already active, but experienced increased activity |
 
-**Example result (anomaly on 2018-07-18):**
+These classifications help determine whether a demand change was broad across existing products or concentrated in particular product behaviors.
 
-| Behavior | Share of Items |
-|---|---|
-| Reactivated Product | 37.21% |
-| Active + Increased | 32.56% |
-| New Product | 30.23% |
+### 🧑‍💼 Seller Analysis
 
-This spread indicates the increase was distributed across multiple product behaviors rather than dominated by one.
+Seller activity is analyzed to determine whether unusual demand is concentrated among a small number of sellers. The investigation can surface:
 
-### Seller Analysis
-Checks whether the anomaly is concentrated among a small number of sellers.
+- Top sellers by order contribution
+- Seller-level changes compared with a reference period
+- Sellers contributing to unusual demand changes
 
-> **Top seller contribution: 13.95%** — not high enough to be a dominant explanation, making a broad category-level demand increase more plausible than a single-seller effect.
+A high concentration may indicate that a small number of sellers are associated with the observed demand change. However, **seller concentration is treated as evidence associated with the anomaly, not proof that the seller caused it.**
 
-### Geographic Analysis
+### 🗺️ Geographic Analysis
 
-| State | Share |
-|---|---|
-| SP | 39.74% |
-| MG | 13.36% |
-| RJ | 12.05% |
-| SC | 4.23% |
-| BA | 4.23% |
+Customer and seller location information can be used to understand geographic distribution. The analysis can identify:
 
-São Paulo held the largest share of anomaly-day orders. Geographic concentration alone doesn't prove causation, so it's treated as a **supporting signal**.
+- States with high order contribution
+- Geographic concentration
+- Changes in geographic demand patterns
 
-### Payment Analysis
+Geographic concentration is treated as a **supporting signal** rather than direct causal evidence.
 
-| Method | Share |
-|---|---|
-| Credit Card | 71.83% |
-| Boleto | 17.03% |
-| Voucher | 6.50% |
-| Debit Card | 4.64% |
+### 💳 Payment Analysis
 
-No unusual shift in payment behavior was detected — ranked as a **weak signal**.
+Payment data is analyzed to understand whether the anomaly is associated with changes in payment behavior. The investigation considers:
 
-### Customer Review Analysis
+- Payment method
+- Number of transactions
+- Payment value
+- Distribution of payment methods
 
-- Average review score: **4.49 / 5**
-- Low score rate: **5.75%**
+Example payment methods include Credit Card, Boleto, Debit Card, and Voucher.
 
-Not unusually elevated compared with the reference period — dissatisfaction was **not** a primary driver.
+If payment behavior does not change significantly, it becomes a weaker explanation for the observed anomaly.
 
-### Review Text Analysis
-Review comments are analyzed with **TF-IDF** to surface frequently occurring terms and themes (e.g., *produto, entrega, recomendo, prazo, chegou*). Review text in the dataset is primarily **Portuguese**. These terms are treated as textual signals, not proof of causation.
+### ⭐ Customer Review Analysis
 
-### Delivery Analysis
+Customer review information can provide additional business context. The system can examine:
 
-- Average delivery time: **8.76 days**
-- Late delivery rate: **2.93%**
+- Review scores
+- Average review score
+- Distribution of review ratings
+- Low-score reviews
 
-Delivery performance did not provide strong evidence of an operational problem behind the anomaly.
+Review data is treated as **supporting evidence**. An important limitation is that reviews may be submitted after the original purchase, so same-day review activity should not automatically be interpreted as the cause of same-day demand.
+
+### 📝 Review Text Analysis
+
+Review comments can also be analyzed to identify recurring terms and themes. The dataset contains primarily **Portuguese** review text.
+
+Text analysis can help surface recurring terms related to topics such as:
+
+```text
+produto
+entrega
+recomendo
+prazo
+chegou
+```
+
+These terms are useful as contextual signals but should **not** be interpreted as proof of causation.
+
+### 🚚 Delivery Performance Analysis
+
+Delivery information can be analyzed to understand operational performance. The investigation considers:
+
+- Average delivery time
+- Median delivery time
+- Delivery completion
+- Late delivery behavior
+
+Delivery metrics can provide additional evidence about whether operational problems may be associated with unusual customer/order behavior.
 
 ---
 
-## 🧮 Evidence Scoring
+## 🧮 Evidence-Based Investigation
 
-A heuristic scoring system combines all investigation signals into a ranked, interpretable explanation:
+The investigation combines multiple signals to form an interpretable explanation:
 
-| Signal | Evidence Strength |
-|---|---|
-| Category demand surge | 🟢 Primary |
-| Reactivated products | 🟡 Supporting |
-| Active + increased products | 🟡 Supporting |
-| New products | 🟡 Supporting |
-| Seller concentration | ⚪ Weak |
-| Payment behavior | ⚪ Weak |
-| Customer dissatisfaction | ⚫ Context |
-| Delivery problems | ⚫ Context |
+```text
+Forecast Anomaly
+      │
+      ├── Category Signal
+      ├── Product Signal
+      ├── Seller Signal
+      ├── Geographic Signal
+      ├── Payment Signal
+      ├── Review Signal
+      └── Delivery Signal
+              │
+              ▼
+      Evidence Comparison
+              │
+              ▼
+    Likely Contributing Factors
+```
 
-> ⚠️ **Important:** These scores are heuristic signals. They do **not** represent statistical probabilities and do **not** prove causation.
+The system should be interpreted as an **evidence-ranking framework**. It does not claim:
+
+> "This factor definitely caused the anomaly."
+
+Instead, it answers:
+
+> "This factor shows stronger evidence associated with the observed anomaly than the other investigated factors."
 
 ---
 
-## 🕵️ Example Investigation Walkthrough
+## 🕵️ Example Investigation
 
-**Investigated date:** `2018-07-18`
+One investigated historical date is **`2018-07-19`**.
+
+The forecasting model produced a large deviation between expected and actual demand:
 
 | Metric | Value |
 |---|---|
-| Actual orders | 307 |
-| Expected orders | 211.91 |
-| Demand lift | **+44.87%** |
-| Anomaly detected | ✅ True |
+| Actual Orders | 253 |
+| Predicted Orders | 673.71 |
+| Absolute Error | 420.71 |
+| Anomaly | Yes |
 
-**Strongest category signal:** `cama_mesa_banho`, with share increasing by **+4.04 percentage points** vs. the reference period.
+The model significantly **overestimated** demand on this date.
 
-**Product-level evidence:**
-- Reactivated products: 37.21%
-- Active + increased: 32.56%
-- New products: 30.23%
+This example is particularly useful because it demonstrates an important distinction: **a large forecasting error does not automatically mean the business experienced a true demand anomaly.**
 
-**Seller evidence:** Largest seller contributed 13.95% — no dominant single-seller effect.
+The date can be flagged for investigation based on forecast deviation, but the investigation should consider whether the difference represents genuine business behavior or simply model error.
 
-**Customer evidence:** 4.49 / 5 average score, 5.75% low-score rate — no strong dissatisfaction signal.
+For example, the model relied heavily on recent demand features such as:
 
-**Delivery evidence:** 8.76-day average delivery, 2.93% late-delivery rate — not a likely driver.
+- Previous-day demand
+- Seven-day rolling demand
+- Seven-day lag
 
-### Conclusion
+The unusually high demand on the previous day caused the forecasting model to expect a much larger number of orders on the following day.
 
-The strongest evidence points to a **broad demand surge in the `cama_mesa_banho` category**, distributed across reactivated products, existing products with increased activity, and new products. Seller concentration, payment behavior, customer dissatisfaction, and delivery performance all provided weaker supporting evidence.
-
-**Final ranking:** *Broad category demand surge* is the most likely explanation — presented as an **evidence-based hypothesis**, not proof of causation.
+Therefore, the observed deviation is evidence of **forecast error**, not automatically proof of an underlying business event.
 
 ---
 
 ## 🖥️ Streamlit Dashboard
 
-An interactive dashboard lets users:
+The project includes an interactive Streamlit dashboard that allows users to:
 
 - Select an investigation date
-- View actual vs. expected demand
-- Inspect anomaly scores and top anomalies
-- Analyze category contribution
-- Inspect product behavior
-- Review seller contribution
-- Explore geographic distribution
-- Analyze payment methods
-- Inspect review metrics and text signals
-- Review delivery performance
-- Read the final root-cause conclusion
+- View expected demand
+- View actual demand when reliable actual data is available
+- Compare actual vs predicted demand
+- Identify anomalies
+- Investigate product categories
+- Analyze product behavior
+- Analyze seller contribution
+- Explore geographic patterns
+- Inspect payment behavior
+- Review customer review information
+- Examine delivery performance
+- View investigation results
 
-Designed to be understandable by both technical and business users.
-
----
-
-## 🧪 MLflow Experiment Tracking
-
-**MLflow** tracks the forecasting experiment, recording run parameters, metrics, and artifacts locally — making the model development process reproducible and easy to inspect.
+For dates after the reliable historical-data cutoff, the dashboard switches to **Forecast Only** mode and does not perform historical anomaly/root-cause analysis.
 
 ---
 
 ## 📁 Project Structure
 
-```
+```text
 AI-RootCause-Investigator/
 │
 ├── app/
 │   └── dashboard.py
 │
 ├── artifacts/
-│   ├── models/
-│   └── feature_importance.csv
 │
 ├── data/
 │   └── raw/
 │
 ├── notebooks/
+│   └── 01_data_understanding.ipynb
+│
+├── screenshots/
 │
 ├── src/
+│   ├── __init__.py
 │   ├── data_loader.py
 │   ├── forecasting.py
 │   ├── anomaly_detection.py
-│   ├── product_analysis.py
-│   └── investigation.py
+│   ├── investigation.py
+│   └── product_analysis.py
 │
 ├── main.py
-├── requirements.txt
+├── mlflow
 ├── README.md
+├── requirements.txt
 └── .gitignore
 ```
+
+> `data/raw/` contains the locally downloaded Olist dataset and should **not** be committed to the repository.
 
 ---
 
 ## 🛠️ Technology Stack
 
-| Category | Tools |
+| Category | Technologies |
 |---|---|
-| **Programming** | Python, Pandas, NumPy |
-| **Machine Learning** | Scikit-learn, Random Forest, TF-IDF |
-| **Model & Experiment Management** | MLflow, Joblib |
-| **Visualization** | Matplotlib, Seaborn |
-| **Dashboard** | Streamlit |
+| Programming | Python |
+| Data Processing | Pandas, NumPy |
+| Machine Learning | Scikit-learn |
+| Forecasting Model | Random Forest Regressor |
+| Analysis | Pandas, NumPy |
+| Visualization | Matplotlib, Seaborn |
+| Dashboard | Streamlit |
+| Development | Jupyter Notebook, VS Code |
+| Version Control | Git, GitHub |
 
 ---
 
@@ -424,6 +691,7 @@ python -m venv venv
 ### 3. Activate the Virtual Environment
 
 **Windows PowerShell:**
+
 ```powershell
 .\venv\Scripts\Activate.ps1
 ```
@@ -434,52 +702,39 @@ python -m venv venv
 pip install -r requirements.txt
 ```
 
-### 5. Add the Dataset
+### 5. Download the Dataset
 
-Download the Olist Brazilian E-commerce dataset from [Kaggle](https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce) and place the CSV files inside:
+Download the **[Olist Brazilian E-commerce Public Dataset](https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce)** and place the CSV files inside `data/raw/`.
 
+The expected directory structure:
+
+```text
+data/
+└── raw/
+    ├── olist_orders_dataset.csv
+    ├── olist_order_items_dataset.csv
+    ├── olist_products_dataset.csv
+    ├── olist_customers_dataset.csv
+    ├── olist_sellers_dataset.csv
+    ├── olist_order_payments_dataset.csv
+    ├── olist_order_reviews_dataset.csv
+    ├── olist_geolocation_dataset.csv
+    └── product_category_name_translation.csv
 ```
-data/raw/
-```
 
-> Raw CSV files are intentionally excluded from Git via `.gitignore`.
-
-### 6. Run the ML Pipeline
+### 6. Run the Main Pipeline
 
 ```bash
 python main.py
 ```
 
-The pipeline will:
-
-```
-Load Data → Create Daily Demand → Train Forecasting Model → Evaluate Model
-→ Detect Anomalies → Investigate Root Cause → Track Experiment → Save Model Artifacts
-```
-
-### 7. Start the Dashboard
+### 7. Start the Streamlit Dashboard
 
 ```bash
 streamlit run app/dashboard.py
 ```
 
-The dashboard will open automatically in your browser.
-
----
-
-## 📦 Generated Artifacts
-
-```
-artifacts/
-│
-├── models/
-│   └── demand_forecasting_model.pkl
-│
-└── feature_importance.csv
-```
-
-- The trained forecasting model is saved using **Joblib**.
-- Feature importance is saved separately so the model's most influential features can be inspected.
+The dashboard should then open in your browser.
 
 ---
 
@@ -492,82 +747,163 @@ The forecasting model currently uses:
 - `rolling_7`
 - `day_of_week`
 
-The strongest predictor is **`lag_1`** (previous day's demand), followed by the 7-day rolling average and 7-day lag — indicating recent demand history is highly informative for short-term order volume forecasting.
+The model's feature importance provides insight into which historical demand signals are most useful for the Random Forest model. In the current experiment, the strongest features (in order) were:
+
+1. `lag_1`
+2. `rolling_7`
+3. `lag_7`
+4. `day_of_week`
+
+This indicates that recent demand history is particularly informative for short-term order forecasting.
 
 ---
 
 ## ⚠️ Limitations
 
-- **Historical data** — the system doesn't monitor a live e-commerce platform.
-- **Dataset coverage** — incomplete data near the dataset's ending period is mitigated with a dedicated coverage-protection check.
-- **Heuristic evidence scores** — root-cause scores are heuristic, not statistical probabilities.
-- **Causality** — the system surfaces evidence *consistent with* possible explanations; it does not prove causation.
-- **Forecasting quality** — depends on the historical patterns available in the dataset.
-- **Review language** — review text is primarily Portuguese; text analysis is performed in the original language.
+**1. Historical Dataset**
+The project uses historical Olist data rather than a live e-commerce data stream.
+
+**2. Dataset Coverage**
+The later portion of the dataset contains incomplete/sparse coverage. A reliable actual-data cutoff is therefore used to prevent false anomaly detection.
+
+**3. Forecasting Model**
+The current forecasting model is a Random Forest regression model using a small set of time-based features. More advanced time-series methods could potentially improve forecasting performance.
+
+**4. Forecast Error vs Business Anomaly**
+A large difference between actual and predicted demand can be caused by:
+
+- Genuine business behavior
+- Unexpected demand
+- Model limitations
+- Insufficient features
+- Sudden events not represented in historical data
+
+Therefore, **forecast error should not automatically be interpreted as a business anomaly.**
+
+**5. Root-Cause Analysis**
+The investigation identifies likely contributing factors and supporting evidence. It does **not** establish statistical or causal relationships.
+
+**6. Review Timing**
+Customer reviews may occur after the purchase date, so review information should be interpreted carefully.
+
+**7. Review Language**
+The review text is primarily Portuguese, which can limit the effectiveness of simple English-oriented text-analysis approaches.
 
 ---
 
 ## 🔮 Future Improvements
 
-- Real-time order data integration
-- Automated anomaly alerts
-- More advanced forecasting models (XGBoost, gradient boosting)
-- Time-series-specific forecasting models
+**Forecasting**
+- XGBoost forecasting
+- Gradient Boosting
+- Advanced time-series models
+- Hyperparameter tuning
+- Cross-validation designed for time-series data
+- Additional calendar and seasonal features
+
+**Explainability**
 - SHAP-based model explanations
+- Feature-level forecast explanations
+- More robust evidence scoring
+
+**Root-Cause Analysis**
 - Statistical significance testing
 - Causal inference
-- LLM-generated investigation summaries
-- Real-time streaming pipelines
-- Automated model retraining
+- Better reference-period selection
+- Automated confidence scoring
+- More robust product and seller attribution
+
+**NLP**
+- Better Portuguese NLP processing
+- Sentiment analysis
+- Topic modeling
+- Transformer-based review analysis
+
+**Production**
+- Real-time data ingestion
+- Automated anomaly alerts
+- Model retraining
+- REST API
 - Cloud deployment
-- API-based architecture
+- Real-time streaming pipelines
 - Role-based dashboard access
-- Automated email / Slack alerts
+- Email/Slack notifications
 
 ---
 
 ## 🏗️ Production Architecture Idea
 
-```
-Live E-commerce Data
-        │
-        ▼
- Data Ingestion Layer
-        │
-        ▼
- Feature Engineering
-        │
-        ▼
- Forecasting Service
-        │
-        ▼
- Anomaly Detection
-        │
-        ▼
- Root Cause Investigation
-        │
-        ▼
- Evidence Ranking
-        │
-        ▼
- Alert / API / Dashboard
+The current project can be extended toward a production architecture such as:
+
+```text
+                Live E-commerce Data
+                         │
+                         ▼
+                  Data Ingestion
+                         │
+                         ▼
+                 Data Validation
+                         │
+                         ▼
+                Feature Engineering
+                         │
+                         ▼
+                Forecasting Service
+                         │
+                         ▼
+                Anomaly Detection
+                         │
+                         ▼
+              Root-Cause Investigation
+                         │
+                         ▼
+                 Evidence Ranking
+                         │
+              ┌──────────┴──────────┐
+              ▼                     ▼
+          Alert System          Dashboard/API
 ```
 
-The current project focuses on building and validating the core investigation workflow using historical data as a foundation for this architecture.
+The current implementation focuses on developing and validating the core forecasting and investigation workflow using historical data.
 
 ---
 
 ## 💡 Why This Project?
 
-Traditional anomaly detection systems typically stop at:
+Traditional forecasting systems may answer:
 
-> *"Something unusual happened."*
+> "How many orders should we expect?"
 
-This project goes one step further:
+Traditional anomaly detection may answer:
 
-> *"Something unusual happened — and here are the business signals that may explain it."*
+> "Something unusual happened."
 
-Combining forecasting, anomaly detection, multi-dimensional analysis, evidence scoring, and explainable reporting makes this a useful prototype for operational analytics and AI-assisted business investigation.
+This project combines both ideas with business investigation. The intended workflow is:
+
+```text
+What should happen?
+        ↓
+What actually happened?
+        ↓
+Was the difference unusual?
+        ↓
+Which business dimensions changed?
+        ↓
+What evidence supports each explanation?
+        ↓
+What are the most likely contributing factors?
+```
+
+This makes the project more than a simple machine-learning prediction model. It demonstrates an end-to-end approach combining:
+
+- Machine Learning
+- Feature Engineering
+- Forecasting
+- Anomaly Detection
+- Data Analysis
+- Business Investigation
+- Explainability
+- Interactive Visualization
 
 ---
 
@@ -576,10 +912,36 @@ Combining forecasting, anomaly detection, multi-dimensional analysis, evidence s
 **Sujal Singh Jhala**
 B.Tech Electronics Engineering, Madhav Institute of Technology & Science, Gwalior
 
-Interested in: Machine Learning · Artificial Intelligence · NLP · Data Science · MLOps · Software Engineering
+**Interests:** Machine Learning · Artificial Intelligence · Data Science · Natural Language Processing · MLOps · Software Engineering
 
 ---
 
 ## 📄 Disclaimer
 
-This project is an analytical prototype built using a public historical dataset. Root-cause findings should be interpreted as **evidence-based hypotheses**, not guaranteed causal explanations. The architecture is designed so the historical dataset can eventually be replaced with live business data in a production environment.
+This project is an analytical prototype built using a public historical dataset.
+
+The forecasting model provides estimates of expected demand, while the investigation system identifies business signals associated with unusual observations.
+
+Root-cause findings should be interpreted as **evidence-based hypotheses and likely contributing factors**, not guaranteed causal explanations.
+
+The current architecture is designed as a foundation that could eventually be extended to live business data, automated monitoring, production APIs, and real-time operational analytics.
+
+---
+
+### 📝 Note
+
+The previous version of this README referenced MLflow experiment tracking and model-saving as part of the working pipeline. This has been removed since only completed and verified functionality is documented here.
+
+After replacing `README.md`, commit the update:
+
+```bash
+git add README.md
+git commit -m "Update project README"
+git push origin main
+```
+
+Then confirm a clean working tree:
+
+```bash
+git status
+```
